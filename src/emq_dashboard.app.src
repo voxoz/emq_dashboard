@@ -1,0 +1,8 @@
+{application, emq_dashboard, [
+    {description, "EMQ Web Dashboard"},
+    {vsn, "2.1.1"},
+    {modules, []},
+    {registered, [emq_dashboard_sup]},
+    {applications, [kernel,stdlib,mnesia,emqttd]},
+    {mod, {emq_dashboard_app, []}}
+]}.
