@@ -41,19 +41,19 @@ list(Key, PageNo, PageSize) ->
     Fun = 
     case length(Keys) == 0 of
     true ->
-        MP = {{Key, '_'}, '_'},
+        MP = {'_', {Key, '_'}, '_'},
         fun() -> ets:match_object(mqtt_subproperty, MP) end;
     false ->
         fun() ->
-        lists:map(fun({S, T}) ->[R] = ets:lookup(?TAB, {T, S}), R 
+        lists:map(fun({_, S, T}) ->[R] = ets:lookup(?TAB, {T, S}), R
                   end, Keys)
         end
     end,
     emq_dashboard:lookup_table(Fun, PageNo, PageSize, fun row/1).
 
-row({{Topic, ClientId}, Option}) when is_pid(ClientId)->
-    row({{Topic, list_to_binary(pid_to_list(ClientId))},Option});
-row({{Topic, ClientId}, Option}) ->
+row({M, {Topic, ClientId}, Option}) when is_pid(ClientId)->
+    row({M, {Topic, list_to_binary(pid_to_list(ClientId))},Option});
+row({M, {Topic, ClientId}, Option}) ->
     Qos = proplists:get_value(qos, Option),
     [{clientid, ClientId}, {topic, Topic}, {qos, Qos}].
 
