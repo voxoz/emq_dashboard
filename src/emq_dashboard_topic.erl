@@ -43,6 +43,6 @@ row(#mqtt_topic{topic = Topic, flags= _Flags}) ->
     [{topic, Topic}, {count, length(Count)}].
 
 topic_subCount(Topic) ->
-    MP = {{Topic, '_'}, '_'},
+    MP = {'_',{Topic, '_'}, '_'},
     ets:match_object(mqtt_subproperty, MP).
 
