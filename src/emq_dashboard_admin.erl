@@ -186,8 +186,8 @@ needs_defaut_user() ->
 is_empty(Tab) ->
     mnesia:dirty_first(Tab) == '$end_of_table'.
 
--define(DEFAULT_ADMIN_NAME, proplists:get_value(name, application:get_env(emq_dashboard, default_admin, <<"admin">>))).
--define(DEFAULT_ADMIN_PASS, proplists:get_value(password, application:get_env(emq_dashboard, default_admin, <<"public">>))).
+-define(DEFAULT_ADMIN_NAME, proplists:get_value(name, application:get_env(emq_dashboard, default_admin, []), <<"admin">>)).
+-define(DEFAULT_ADMIN_PASS, proplists:get_value(password, application:get_env(emq_dashboard, default_admin, []), <<"public">>)).
 
 insert_default_user() ->
     Admin = #mqtt_admin{username = ?DEFAULT_ADMIN_NAME,
