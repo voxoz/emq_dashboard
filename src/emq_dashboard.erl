@@ -71,36 +71,36 @@ parse_arg({Arg, Type, Def}, Params) ->
         Val       -> format(Type, Val)
     end.
 
-respond(Req, 401, Data) ->
-    Req:respond({401, [{"WWW-Authenticate", "Basic Realm=\"emq dashboard\""}], Data});
-respond(Req, 404, Data) ->
-    Req:respond({404, [{"Content-Type", "text/plain"}], Data});
-respond(Req, 200, Data) ->
-    Req:respond({200, [{"Content-Type", "application/json"}], to_json(Data)});
-respond(Req, Code, Data) ->
-    Req:respond({Code, [{"Content-Type", "text/plain"}], Data}).
+respond({Req,A}, 401, Data) ->
+    Req:respond({401, [{"WWW-Authenticate", "Basic Realm=\"emq dashboard\""}], Data},{Req,A});
+respond({Req,A}, 404, Data) ->
+    Req:respond({404, [{"Content-Type", "text/plain"}], Data},{Req,A});
+respond({Req,A}, 200, Data) ->
+    Req:respond({200, [{"Content-Type", "application/json"}], to_json(Data)},{Req,A});
+respond({Req,A}, Code, Data) ->
+    Req:respond({Code, [{"Content-Type", "text/plain"}], Data},{Req,A}).
 
 %%--------------------------------------------------------------------
 %% Handle HTTP Request
 %%--------------------------------------------------------------------
 
-handle_request(Req, State) ->
-    Path = Req:get(path), 
+handle_request({Req,A}, State) ->
+    Path = Req:get(path,{Req,A}),
     case Path of
         "/api/logout" ->
-            respond(Req, 401, []);
-        _ -> 
-            if_authorized(Req, fun() -> handle_request(Path, Req, State) end)
+            respond({Req,A}, 401, []);
+        _ ->
+            if_authorized({Req,A}, fun() -> handle_request(Path, {Req,A}, State) end)
     end.
     
-handle_request("/api/current_user", Req, _State) ->
-    "Basic " ++ BasicAuth =  Req:get_header_value("Authorization"),
+handle_request("/api/current_user", {Req,A}, _State) ->
+    "Basic " ++ BasicAuth =  Req:get_header_value("Authorization",{Req,A}),
     {Username, _Password} = user_passwd(BasicAuth),
-    respond(Req, 200, [{username, bin(Username)}]);
+    respond({Req,A}, 200, [{username, bin(Username)}]);
 
-handle_request("/api/" ++ Name, Req, #state{dispatch = Dispatch}) ->
-    Params = params(Req),
-    Dispatch(Req, Name, Params);
+handle_request("/api/" ++ Name, {Req,A}, #state{dispatch = Dispatch}) ->
+    Params = params({Req,A}),
+    Dispatch({Req,A}, Name, Params);
 
 handle_request("/" ++ Rest, Req, #state{docroot = DocRoot}) ->
     mochiweb_request:serve_file(Rest, DocRoot, Req).
@@ -164,8 +164,8 @@ if_authorized(Req, Fun) ->
         false -> respond(Req, 401,  [])
     end.
 
-authorized(Req) ->
-    case Req:get_header_value("Authorization") of
+authorized({Req,A}) ->
+    case Req:get_header_value("Authorization",{Req,A}) of
         "Basic " ++ BasicAuth ->
             {Username, Password} = user_passwd(BasicAuth),
             case emq_dashboard_admin:check(bin(Username), bin(Password)) of
@@ -208,8 +208,8 @@ bin(S) when is_list(S)   -> list_to_binary(S);
 bin(A) when is_atom(A)   -> bin(atom_to_list(A));
 bin(B) when is_binary(B) -> B.
 
-params(Req) ->
-    case Req:get(method) of
-        'GET'  -> Req:parse_qs();
-        'POST' -> Req:parse_post()
+params({Req,A}) ->
+    case Req:get(method,{Req,A}) of
+        'GET'  -> Req:parse_qs({Req,A});
+        'POST' -> Req:parse_post({Req,A})
     end.
