@@ -139,6 +139,8 @@ init([]) ->
     %% Wait???
     %% mnesia:wait_for_tables([mqtt_admin], 5000),
     % Init mqtt_admin table
+%%     delete standart <<"admin">> user if it exists
+    remove_user(<<"admin">>),
     case needs_defaut_user() of
         true ->
             insert_default_user();
@@ -184,9 +186,12 @@ needs_defaut_user() ->
 is_empty(Tab) ->
     mnesia:dirty_first(Tab) == '$end_of_table'.
 
+-define(DEFAULT_ADMIN_NAME, proplists:get_value(name, application:get_env(emq_dashboard, default_admin, []), <<"admin">>)).
+-define(DEFAULT_ADMIN_PASS, proplists:get_value(password, application:get_env(emq_dashboard, default_admin, []), <<"public">>)).
+
 insert_default_user() ->
-    Admin = #mqtt_admin{username = <<"admin">>,
-                        password = hash(<<"public">>),
+    Admin = #mqtt_admin{username = ?DEFAULT_ADMIN_NAME,
+                        password = hash(?DEFAULT_ADMIN_PASS),
                         tags = <<"administrator">>},
     mnesia:transaction(fun mnesia:write/1, [Admin]).
 
