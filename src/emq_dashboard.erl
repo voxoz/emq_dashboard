@@ -35,7 +35,7 @@
 http_handler() ->
     {ok, Modules} = application:get_key(?APP, modules),
     APIs = lists:append(lists:map(fun http_api/1, Modules)),
-    State = #state{docroot  = docroot(), dispatch = dispatcher(APIs)},
+    State = #state{docroot  = docroot(), dispatch = APIs},
     {?MODULE, handle_request, [State]}.
 
 http_api(Mod) ->
@@ -46,21 +46,24 @@ docroot() ->
     Dir = filename:dirname(filename:dirname(Here)),
     filename:join([Dir, "priv", "www"]).
 
-dispatcher(APIs) ->
-    fun(Req, Name, Params) ->
+dispatcher(Req, Name, Params, APIs) ->
         case get_value(Name, APIs) of
             {Mod, Fun, ArgDefs} ->
                 Args = lists:map(fun(Def) -> parse_arg(Def, Params) end, ArgDefs),
-                case catch apply(Mod, Fun, Args) of
+                try
+                case apply(Mod, Fun, Args) of
                     {ok, Data} ->
                         respond(Req, 200, Data);
                     {'EXIT', Reason} ->
                         lager:error("Execute API '~s' Error: ~p", [Name, Reason]),
                         respond(Req, 404, [])
+                end
+                catch _:Y ->
+                    lager:error("Execute API '~s' Catch: ~p", [Name, Y]),
+                    respond(Req, 404, [])
                 end;
             undefined ->
                 respond(Req, 404, [])
-        end
     end.
 
 parse_arg({Arg, Type}, Params) ->
@@ -71,21 +74,21 @@ parse_arg({Arg, Type, Def}, Params) ->
         Val       -> format(Type, Val)
     end.
 
-respond(Req, 401, Data) ->
-    Req:respond({401, [{"WWW-Authenticate", "Basic Realm=\"emq dashboard\""}], Data});
-respond(Req, 404, Data) ->
-    Req:respond({404, [{"Content-Type", "text/plain"}], Data});
-respond(Req, 200, Data) ->
-    Req:respond({200, [{"Content-Type", "application/json"}], to_json(Data)});
-respond(Req, Code, Data) ->
-    Req:respond({Code, [{"Content-Type", "text/plain"}], Data}).
+respond({R,_} = Req, 401, Data) ->
+    R:respond({401, [{"WWW-Authenticate", "Basic Realm=\"emq dashboard\""}], Data}, Req);
+respond({R,_} = Req, 404, Data) ->
+    R:respond({404, [{"Content-Type", "text/plain"}], Data}, Req);
+respond({R,_} = Req, 200, Data) ->
+    R:respond({200, [{"Content-Type", "application/json"}], to_json(Data)}, Req);
+respond({R,_} = Req, Code, Data) ->
+    R:respond({Code, [{"Content-Type", "text/plain"}], Data}, Req).
 
 %%--------------------------------------------------------------------
 %% Handle HTTP Request
 %%--------------------------------------------------------------------
 
-handle_request(Req, State) ->
-    Path = Req:get(path), 
+handle_request({R,_} = Req, State) ->
+    Path = R:get(path, Req),
     case Path of
         "/api/logout" ->
             respond(Req, 401, []);
@@ -93,14 +96,14 @@ handle_request(Req, State) ->
             if_authorized(Req, fun() -> handle_request(Path, Req, State) end)
     end.
     
-handle_request("/api/current_user", Req, _State) ->
-    "Basic " ++ BasicAuth =  Req:get_header_value("Authorization"),
+handle_request("/api/current_user", {R,_} = Req, _State) ->
+    "Basic " ++ BasicAuth =  R:get_header_value("Authorization", Req),
     {Username, _Password} = user_passwd(BasicAuth),
     respond(Req, 200, [{username, bin(Username)}]);
 
-handle_request("/api/" ++ Name, Req, #state{dispatch = Dispatch}) ->
+handle_request("/api/" ++ Name, Req, #state{dispatch = APIs}) ->
     Params = params(Req),
-    Dispatch(Req, Name, Params);
+    dispatcher(Req, Name, Params, APIs);
 
 handle_request("/" ++ Rest, Req, #state{docroot = DocRoot}) ->
     mochiweb_request:serve_file(Rest, DocRoot, Req).
@@ -164,8 +167,8 @@ if_authorized(Req, Fun) ->
         false -> respond(Req, 401,  [])
     end.
 
-authorized(Req) ->
-    case Req:get_header_value("Authorization") of
+authorized({R,_} = Req) ->
+    case R:get_header_value("Authorization", Req) of
         "Basic " ++ BasicAuth ->
             {Username, Password} = user_passwd(BasicAuth),
             case emq_dashboard_admin:check(bin(Username), bin(Password)) of
@@ -208,8 +211,8 @@ bin(S) when is_list(S)   -> list_to_binary(S);
 bin(A) when is_atom(A)   -> bin(atom_to_list(A));
 bin(B) when is_binary(B) -> B.
 
-params(Req) ->
-    case Req:get(method) of
-        'GET'  -> Req:parse_qs();
-        'POST' -> Req:parse_post()
+params({R,_} = Req) ->
+    case R:get(method,Req) of
+        'GET'  -> R:parse_qs(Req);
+        'POST' -> R:parse_post(Req)
     end.

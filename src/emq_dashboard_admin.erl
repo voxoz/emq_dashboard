@@ -16,7 +16,7 @@
 
 %% @doc Web dashboard admin authentication with username and password.
 -module(emq_dashboard_admin).
--compile(export_all).
+%-compile(export_all).
 -behaviour(gen_server).
 
 -include("emq_dashboard.hrl").
@@ -177,7 +177,7 @@ md5_hash(SaltBin, Password) ->
 
 salt() ->
     emqttd_time:seed(),
-    Salt = random:uniform(16#ffffffff),
+    Salt = rand:uniform(16#ffffffff),
     <<Salt:32>>.
 
 needs_defaut_user() ->
