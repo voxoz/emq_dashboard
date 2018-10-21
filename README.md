@@ -1,10 +1,12 @@
-EMQ 2.1.2 Dashboard
-===================
+EMQ Dashboard
+=============
+
+[![Build Status](https://travis-ci.org/synrc/emq_dashboard.svg?branch=3.0)](https://travis-ci.org/synrc/emq_dashboard)
 
 Features
 --------
 
-* Dashboard for EMQ emqttd server 2.1.2
+* Dashboard for EMQ MQTT server version 2.1.2
 
 Try
 ---
