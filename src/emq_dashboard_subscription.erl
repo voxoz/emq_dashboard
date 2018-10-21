@@ -53,7 +53,7 @@ list(Key, PageNo, PageSize) ->
 
 row({M, {Topic, ClientId}, Option}) when is_pid(ClientId)->
     row({M, {Topic, list_to_binary(pid_to_list(ClientId))},Option});
-row({M, {Topic, ClientId}, Option}) ->
+row({_, {Topic, ClientId}, Option}) ->
     Qos = proplists:get_value(qos, Option),
     [{clientid, ClientId}, {topic, Topic}, {qos, Qos}].
 
